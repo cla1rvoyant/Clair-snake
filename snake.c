@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
     curs_set(0);
     noecho();
     start_color();
-	init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
+    init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(2, COLOR_GREEN, COLOR_BLACK);
     init_pair(3, COLOR_RED, COLOR_BLACK);
     

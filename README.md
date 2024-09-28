@@ -1,4 +1,5 @@
-# Download and launch
+# clair-snake
+## Download and launch
 **On Debian-based distribution:**
 ```console
 sudo apt install gcc

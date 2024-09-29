@@ -1,5 +1,5 @@
 # Clair-snake
-Snake game for linux developed using ncurses.
+Snake game for linux developed using ncurses library.
 ## Download and launch
 **On Debian-based distribution:**
 ```console

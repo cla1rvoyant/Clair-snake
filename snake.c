@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     init_pair(3, COLOR_RED, COLOR_BLACK);
     
     // field drawing
-	attron(COLOR_PAIR(1));
+    attron(COLOR_PAIR(1));
     for (int i = 0; i <= FIELD_HEIGHT; i++)
     {
         for (int j = 0; j <= FIELD_WIDTH; j++)
@@ -257,10 +257,12 @@ int main(int argc, char *argv[])
             y_nex[0] = FIELD_HEIGHT - 1;
         
         // drawing parts of the snake with changed coordinates
+	attron(COLOR_PAIR(2));
         move(y_nex[0], x_nex[0]);
-        attron(COLOR_PAIR(2));
         printw(SNAKE_HEAD);
         move(y_nex[1], x_nex[1]);
+        printw(SNAKE_BODY);
+	move(y_nex[length - 1], x_nex[length - 1]);
         printw(SNAKE_BODY);
         attroff(COLOR_PAIR(2));
     }

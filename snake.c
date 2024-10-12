@@ -67,14 +67,17 @@ void delete_tail(Snake *snake)
     free(tailNexus);
 }
 
-void draw_snake(Snake snake)
-{ 
+void generate_snake(Snake *snake)
+{
+    add_head(snake, FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
+    for (int i = 1; i < INITIAL_LENGTH; i++) // initializing the coordinates of the snake
+        add_tail(snake, FIELD_WIDTH / 2 - i, FIELD_HEIGHT / 2);
     attron(COLOR_PAIR(2));
-    Nexus *current = snake.head;
+    Nexus *current = snake->head;
     while (current)
     {
         move(current->y, current->x);
-        if (current == snake.head)
+        if (current == snake->head)
             printw(SNAKE_HEAD);
         else
             printw(SNAKE_BODY);
@@ -163,12 +166,8 @@ int main(int argc, char *argv[])
     int score = 0;
     int dx = 1, dy = 0;
     Snake snake;
-
-    // generate snake
-    add_head(&snake, FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
-    for (int i = 1; i < INITIAL_LENGTH; i++) // initializing the coordinates of the snake
-        add_tail(&snake, FIELD_WIDTH / 2 - i, FIELD_HEIGHT / 2);
-    draw_snake(snake);
+    
+    generate_snake(&snake);
 
     generate_apple(snake);
     

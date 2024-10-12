@@ -5,10 +5,130 @@
 
 #define FIELD_WIDTH 50
 #define FIELD_HEIGHT 16
+#define INITIAL_LENGTH 2
 
 #define SNAKE_HEAD "&"
 #define SNAKE_BODY "@"
 #define APPLE "o"
+
+int apple_x, apple_y;
+bool break_flag = 0;
+
+typedef struct Nexus
+{
+    struct Nexus *next;
+    struct Nexus *prev;
+    int x;
+    int y;
+} Nexus;
+
+typedef struct Snake
+{
+    Nexus *head;
+    Nexus *tail;
+} Snake;
+
+void add_head(Snake *snake, int x_coord, int y_coord)
+{
+    Nexus *newNexus = (Nexus*)malloc(sizeof(Nexus));
+
+    newNexus->prev = newNexus->next = NULL;
+    newNexus->x = x_coord;
+    newNexus->y = y_coord;
+
+    if (snake->head)
+    {
+        snake->head->prev = newNexus;
+        newNexus->next = snake->head;
+        snake->head = newNexus;
+    }
+    else 
+        snake->head = snake->tail = newNexus;
+}
+
+void add_tail(Snake *snake, int x_coord, int y_coord)
+{
+    Nexus *newNexus = (Nexus*)malloc(sizeof(Nexus));
+  
+    newNexus->prev = newNexus->next = NULL;
+    newNexus->x = x_coord;
+    newNexus->y = y_coord;
+
+    snake->tail->next = newNexus;
+    newNexus->prev = snake->tail;
+    snake->tail = newNexus;
+}
+
+void delete_tail(Snake *snake)
+{
+    Nexus *tailNexus = snake->tail;
+    tailNexus->prev->next = tailNexus->next;
+    snake->tail = tailNexus->prev;
+    free(tailNexus);
+}
+
+void draw_snake(Snake snake)
+{ 
+    attron(COLOR_PAIR(2));
+    Nexus *current = snake.head;
+    while (current)
+    {
+        move(current->y, current->x);
+        if (current == snake.head)
+            printw(SNAKE_HEAD);
+        else
+            printw(SNAKE_BODY);
+        current = current->next;
+    }
+    attroff(COLOR_PAIR(2));
+}
+
+void generate_apple(Snake snake)
+{
+    bool apple_flag;
+    do
+    {
+        apple_flag = 1;
+
+        apple_x = 1 + rand() % (FIELD_WIDTH - 1);
+        apple_y = 1 + rand() % (FIELD_HEIGHT - 1);
+
+        Nexus *current = snake.head;
+        while (current)
+        {
+            if (apple_x == current->x && apple_y == current->y)
+                apple_flag = 0;
+            current = current->next;
+        }
+    } while (apple_flag != 1);
+    attron(COLOR_PAIR(3));
+    move(apple_y, apple_x);
+    printw(APPLE);
+    attroff(COLOR_PAIR(3));
+}
+
+void self_eating_check(Snake snake)
+{
+    Nexus *current = snake.head->next;
+    while (current)
+    {
+        if (snake.head->x == current->x && snake.head->y == current->y)
+            break_flag = 1;
+        current = current->next;
+    }
+}
+
+void reaching_bounds_check(Snake snake)
+{
+    if (snake.head->x == FIELD_WIDTH)
+        snake.head->x = 1;
+    if (snake.head->x == 0)
+        snake.head->x = FIELD_WIDTH - 1;
+    if (snake.head->y == FIELD_HEIGHT)
+        snake.head->y = 1;
+    if (snake.head->y == 0)
+        snake.head->y = FIELD_HEIGHT - 1;
+}
 
 int main(int argc, char *argv[])
 {
@@ -17,12 +137,12 @@ int main(int argc, char *argv[])
     curs_set(0);
     noecho();
     start_color();
-    init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
+	init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(2, COLOR_GREEN, COLOR_BLACK);
     init_pair(3, COLOR_RED, COLOR_BLACK);
     
     // field drawing
-    attron(COLOR_PAIR(1));
+	attron(COLOR_PAIR(1));
     for (int i = 0; i <= FIELD_HEIGHT; i++)
     {
         for (int j = 0; j <= FIELD_WIDTH; j++)
@@ -42,48 +162,15 @@ int main(int argc, char *argv[])
     // initialization
     int score = 0;
     int dx = 1, dy = 0;
-    int length = 2;
-    int *x_nex = (int*)malloc(length * sizeof(int));
-    int *y_nex = (int*)malloc(length * sizeof(int));
-    bool break_flag = 0;
+    Snake snake;
 
-    for (int i = 0; i < length; i++) // initializing the coordinates of the snake
-    {
-        x_nex[i] = FIELD_WIDTH / 2 - i;
-        y_nex[i] = FIELD_HEIGHT / 2;
-    }
+    // generate snake
+    add_head(&snake, FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
+    for (int i = 1; i < INITIAL_LENGTH; i++) // initializing the coordinates of the snake
+        add_tail(&snake, FIELD_WIDTH / 2 - i, FIELD_HEIGHT / 2);
+    draw_snake(snake);
 
-    // snake drawing
-    move(y_nex[0], x_nex[0]);
-    attron(COLOR_PAIR(2));
-    printw(SNAKE_HEAD);
-    for (int i = 1; i < length; i++)
-    {
-        move(y_nex[i], x_nex[i]);
-        printw(SNAKE_BODY);
-    }
-    attroff(COLOR_PAIR(2));
-
-    // apple drawing
-    int apple_x, apple_y;
-    bool apple_flag;
-    do
-    {
-        apple_flag = 1;
-
-        apple_x = 1 + rand() % (FIELD_WIDTH - 1);
-        apple_y = 1 + rand() % (FIELD_HEIGHT - 1);
-
-        for (int i = 0; i < length; i++)
-        {
-            if (apple_x == x_nex[i] && apple_y == y_nex[i])
-                apple_flag = 0;
-        }
-    } while (apple_flag != 1);
-    move(apple_y, apple_x);
-    attron(COLOR_PAIR(3));
-    printw(APPLE);
-    attroff(COLOR_PAIR(3));
+    generate_apple(snake);
     
     while (break_flag != 1) // game cycle
     {
@@ -92,32 +179,6 @@ int main(int argc, char *argv[])
 
         switch (getch()) // reading keyboard
         {
-        // handling arrow buttons
-        // case 259:
-        //     if (dy == -1)
-        //         break;
-        //     dx = 0;
-        //     dy = 1;
-        //     break;
-        // case 258:
-        //     if (dy == 1)
-        //         break;
-        //     dx = 0;
-        //     dy = -1;
-        //     break;
-        // case 260:
-        //     if (dx == 1)
-        //         break;
-        //     dx = -1;
-        //     dy = 0;
-        //     break;
-        // case 261:
-        //     if (dx == -1)
-        //         break;
-        //     dx = 1;
-        //     dy = 0;
-        //     break;
-        
         // handling russian keyboard
         case 208:
             switch (getch())
@@ -191,78 +252,35 @@ int main(int argc, char *argv[])
         default:
             break;
         }
-
-        // tail grouting
-        move(y_nex[length - 1], x_nex[length - 1]);
-        printw(" ");
-
-        for (int i = length - 1; i > 0; i--) // setting body coordinates
-        {
-            x_nex[i] = x_nex[i - 1];
-            y_nex[i] = y_nex[i - 1];
-        }
-
+        
         // setting head coordinates
-        x_nex[0] += dx;
-        y_nex[0] += dy;
+        add_head(&snake, snake.head->x + dx, snake.head->y + dy);
 
-        for (int i = 1; i < length; i++) // checking for reaching the body
+        // apple reaching check
+        if (snake.head->x == apple_x && snake.head->y == apple_y)
         {
-            if (x_nex[0] == x_nex[i] && y_nex[0] == y_nex[i])
-                break_flag = 1;
-        }
-
-        if (x_nex[0] == apple_x && y_nex[0] == apple_y) // checking for reaching an apple
-        {
-            length++;
             score++;
-
             move(FIELD_HEIGHT + 1, FIELD_WIDTH / 2 + 4);
             printw("%d", score);
 
-            x_nex = (int*)realloc(x_nex, length * sizeof(int));
-            y_nex = (int*)realloc(y_nex, length * sizeof(int));
-
-            x_nex[length - 1] = x_nex[length - 2] - dx;
-            y_nex[length - 1] = y_nex[length - 2] - dy;
-
-            do
-            {
-                apple_flag = 1;
-        
-                apple_x = 1 + rand() % (FIELD_WIDTH - 1);
-                apple_y = 1 + rand() % (FIELD_HEIGHT - 1);
-
-                for (int i = 0; i < length; i++)
-                {
-                    if (apple_x == x_nex[i] && apple_y == y_nex[i])
-                        apple_flag = 0;
-                }
-            } while (apple_flag != 1);
-
-            move(apple_y, apple_x);
-            attron(COLOR_PAIR(3));
-            printw(APPLE);
-            attroff(COLOR_PAIR(3));
+            generate_apple(snake);
+        }
+        else
+        {
+            move(snake.tail->y, snake.tail->x);
+            printw(" ");
+            delete_tail(&snake);
         }
 
-        // checking for reaching the bounds
-        if (x_nex[0] == FIELD_WIDTH)
-            x_nex[0] = 1;
-        if (x_nex[0] == 0)
-            x_nex[0] = FIELD_WIDTH - 1;
-        if (y_nex[0] == FIELD_HEIGHT)
-            y_nex[0] = 1;
-        if (y_nex[0] == 0)
-            y_nex[0] = FIELD_HEIGHT - 1;
+        self_eating_check(snake);
+
+        reaching_bounds_check(snake);
         
         // drawing parts of the snake with changed coordinates
-	attron(COLOR_PAIR(2));
-        move(y_nex[0], x_nex[0]);
+        attron(COLOR_PAIR(2));
+        move(snake.head->y, snake.head->x);
         printw(SNAKE_HEAD);
-        move(y_nex[1], x_nex[1]);
-        printw(SNAKE_BODY);
-	move(y_nex[length - 1], x_nex[length - 1]);
+        move(snake.head->next->y, snake.head->next->x);
         printw(SNAKE_BODY);
         attroff(COLOR_PAIR(2));
     }

@@ -14,4 +14,6 @@ gcc snake.c -o snake -lncurses
 ```
 
 In one command:
+```console
 sudo apt install gcc libncursesw5-dev git && git clone https://github.com/cla1rvoyant/clair-snake.git && cd clair-snake && gcc snake.c -o snake -lncurses && ./snake
+```

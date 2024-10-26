@@ -10,9 +10,10 @@
 #define SNAKE_HEAD "&"
 #define SNAKE_BODY "@"
 #define APPLE "o"
+#define POINT ">"
 
 int apple_x, apple_y;
-bool break_flag = 0;
+bool break_flag = 0, begin_game_flag = 0, menu_cycle_iteration_flag = 0, first_game_flag = 0;
 
 typedef struct Nexus
 {
@@ -69,9 +70,45 @@ void delete_tail(Snake *snake)
 
 void generate_snake(Snake *snake)
 {
-    add_head(snake, FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
-    for (int i = 1; i < INITIAL_LENGTH; i++) // initializing the coordinates of the snake
-        add_tail(snake, FIELD_WIDTH / 2 - i, FIELD_HEIGHT / 2);
+    // initializing the coordinates of the snake
+    if (first_game_flag == 0) // if this is the first game 
+    {
+        add_head(snake, FIELD_WIDTH / 2, FIELD_HEIGHT / 2);
+        for (int i = 1; i < INITIAL_LENGTH; i++)
+            add_tail(snake, FIELD_WIDTH / 2 - i, FIELD_HEIGHT / 2);
+    }
+    else // if this isn't the first game
+    {
+        int i = 1;
+        Nexus *current = snake->head;
+        Nexus *next;
+        while (i <= INITIAL_LENGTH)
+        {
+            current = current->next;
+            i++;
+        }
+        snake->tail = current->prev;
+
+        while (current)
+        {
+            next = current->next;
+            free(current);
+            current = next;
+        }
+        snake->tail->next = NULL;
+
+        i = 0;
+        current = snake->head;
+        while (current)
+        {
+            current->x = FIELD_WIDTH / 2 - i;
+            current->y = FIELD_HEIGHT / 2;
+            i++;
+            current = current->next;
+        }
+    }
+    
+    // drawing snake
     attron(COLOR_PAIR(2));
     Nexus *current = snake->head;
     while (current)
@@ -116,7 +153,11 @@ void self_eating_check(Snake snake)
     while (current)
     {
         if (snake.head->x == current->x && snake.head->y == current->y)
+        {
             break_flag = 1;
+            begin_game_flag = 0;
+            menu_cycle_iteration_flag = 0;
+        }
         current = current->next;
     }
 }
@@ -133,6 +174,19 @@ void reaching_bounds_check(Snake snake)
         snake.head->y = FIELD_HEIGHT - 1;
 }
 
+void clear_snake(Snake snake)
+{
+    Nexus *current = snake.tail;
+    Nexus *prev;
+
+    while (current != snake.head->next)
+    {
+        prev = current->prev;
+        free(current);
+        current = prev;
+    }
+}
+
 int main(int argc, char *argv[])
 {
     srand(time(NULL));
@@ -143,145 +197,296 @@ int main(int argc, char *argv[])
 	init_pair(1, COLOR_MAGENTA, COLOR_BLACK);
     init_pair(2, COLOR_GREEN, COLOR_BLACK);
     init_pair(3, COLOR_RED, COLOR_BLACK);
+    init_pair(4, COLOR_MAGENTA, COLOR_WHITE);
     
-    // field drawing
-	attron(COLOR_PAIR(1));
-    for (int i = 0; i <= FIELD_HEIGHT; i++)
-    {
-        for (int j = 0; j <= FIELD_WIDTH; j++)
-        {
-            move(i, j);
-            if (j == 0 || j == FIELD_WIDTH)
-                printw("|");
-            else if (i == 0 || i == FIELD_HEIGHT)
-                printw("-");
-        }
-    }
-    attroff(COLOR_PAIR(1));
-
-    move(FIELD_HEIGHT + 1, FIELD_WIDTH / 2 - 3);
-    addstr("SCORE: 0");
-
     // initialization
     int score = 0;
     int dx = 1, dy = 0;
+    int menu_x = 5, menu_y = 3, diff = 1;
+    bool menu_return_flag = 0;
+    int buttons_y[2];
+    int current_point_y;
+    int speeds[2] = {100000, 50000};
     Snake snake;
-    
-    generate_snake(&snake);
 
-    generate_apple(snake);
-    
-    while (break_flag != 1) // game cycle
+    while (1)
     {
-        usleep(100000);
-        nodelay(stdscr, 1);
-
-        switch (getch()) // reading keyboard
+        if (menu_cycle_iteration_flag == 0)
         {
-        // handling russian keyboard
-        case 208:
-            switch (getch())
+            clear();
+            refresh();
+            menu_x = 5, menu_y = 3;
+            menu_cycle_iteration_flag = 1;
+            attron(COLOR_PAIR(2));
+            move(menu_y, menu_x);
+            addstr(" _________ .__         .__        _________              __");
+            move(menu_y + 1, menu_x);
+            addstr(" \\_   ___ \\|  | _____  |__|______/   _____/ ____ _____  |  | __ ____");
+            move(menu_y + 2, menu_x);
+            addstr(" /    \\  \\/|  | \\__  \\ |  \\_  __ \\_____  \\ /     \\__  \\ |  |/ // __ \\");
+            move(menu_y + 3, menu_x);
+            addstr(" \\     \\___|  |__/ __ \\|  ||  | \\/        \\   |  \\/ __ \\|    <\\  ___/");
+            move(menu_y + 4, menu_x);
+            addstr("  \\______  /____(____  /__||__| /_______  /___|  (____  /__|_ \\___  >");
+            move(menu_y + 5, menu_x);
+            addstr("         \\/          \\/                 \\/     \\/     \\/     \\/   \\/");
+            menu_y += 10;
+            menu_x += 30;
+            buttons_y[0] = menu_y;
+            move(menu_y, menu_x);
+            addstr("Play");
+            buttons_y[1] = menu_y + 1;
+            move(menu_y + 1, menu_x);
+            printw("Difficulty < %d >", diff);
+            current_point_y = buttons_y[0];
+            move(current_point_y, menu_x - 1);
+            printw(POINT);
+        }
+
+        switch (getch())
+        {
+        case 10:
+            menu_return_flag = 0;
+            if (current_point_y == buttons_y[0])
             {
-            case 178:
-                if (dx == -1)
-                    break;
-                dx = 1;
-                dy = 0;
-                break;
-            default:
+                begin_game_flag = 1;
                 break;
             }
+            if (current_point_y == buttons_y[1])
+            {
+                move(current_point_y, menu_x - 1);
+                attron(COLOR_PAIR(4));
+                printw(">Difficulty < %d >", diff);
+                while (1)
+                {
+                    switch (getch())
+                    {
+                    case 100:
+                        if (diff == 2)
+                            break;
+                        move(current_point_y, menu_x + 13);
+                        diff++;
+                        printw("%d", diff);
+                        break;
+                    case 97:
+                        if (diff == 1)
+                            break;
+                        move(current_point_y, menu_x + 13);
+                        diff--;
+                        printw("%d", diff);
+                        break;
+                    case 27:
+                        menu_return_flag = 1;
+                        if (current_point_y == buttons_y[1])
+                        {
+                            attron(COLOR_PAIR(2));
+                            move(current_point_y, menu_x - 1);
+                            printw(">Difficulty < %d >", diff);
+                        }
+                        break;
+                    case 10:
+                        menu_return_flag = 1;
+                        if (current_point_y == buttons_y[1])
+                        {
+                            attron(COLOR_PAIR(2));
+                            move(current_point_y, menu_x - 1);
+                            printw(">Difficulty < %d >", diff);
+                        }
+                        break;
+                    default:
+                        break;
+                    }
+                    if (menu_return_flag == 1)
+                        break;
+                }
+            }
             break;
-        
+        case 119:
+            move(current_point_y, menu_x - 1);
+            printw(" ");
+            if (current_point_y == buttons_y[0])
+                current_point_y += 1;
+            else
+                current_point_y--;
+            break;
+        case 115:
+            move(current_point_y, menu_x - 1);
+            printw(" ");
+            if (current_point_y == buttons_y[1])
+                current_point_y -= 1;
+            else
+                current_point_y++;
+            break;
         case 209:
             switch (getch())
             {
             case 139:
-                if (dy == -1)
-                    break;
-                dx = 0;
-                dy = 1;
+                move(current_point_y, menu_x - 1);
+                printw(" ");
+                if (current_point_y == buttons_y[1])
+                    current_point_y -= 1;
+                else
+                    current_point_y++;
                 break;
             case 134:
-                if (dy == 1)
-                    break;
-                dx = 0;
-                dy = -1;
-                break;
-            case 132:
-                if (dx == 1)
-                    break;
-                dx = -1;
-                dy = 0;
-                break;
+                move(current_point_y, menu_x - 1);
+                printw(" ");
+                if (current_point_y == buttons_y[0])
+                    current_point_y += 1;
+                else
+                    current_point_y--;
             default:
                 break;
             }
-            break;
-        
-        // handling english keyboard
-        case 115:
-            if (dy == -1)
-                break;
-            dx = 0;
-            dy = 1;
-            break;
-        
-        case 119:
-            if (dy == 1)
-                break;
-            dx = 0;
-            dy = -1;
-            break;
-        
-        case 97:
-            if (dx == 1)
-                break;
-            dx = -1;
-            dy = 0;
-            break;
-        
-        case 100:
-            if (dx == -1)
-                break;
-            dx = 1;
-            dy = 0;
-            break;
-        
         default:
             break;
         }
-        
-        // setting head coordinates
-        add_head(&snake, snake.head->x + dx, snake.head->y + dy);
-
-        // apple reaching check
-        if (snake.head->x == apple_x && snake.head->y == apple_y)
+        if (begin_game_flag == 1)
         {
-            score++;
-            move(FIELD_HEIGHT + 1, FIELD_WIDTH / 2 + 4);
-            printw("%d", score);
+            clear();
+            refresh();
+            score = 0;
+            dx = 1, dy = 0;
+            break_flag = 0;
 
+            // field drawing
+	        attron(COLOR_PAIR(1));
+            for (int i = 0; i <= FIELD_HEIGHT; i++)
+            {
+                for (int j = 0; j <= FIELD_WIDTH; j++)
+                {
+                    move(i, j);
+                    if (j == 0 || j == FIELD_WIDTH)
+                        printw("|");
+                    else if (i == 0 || i == FIELD_HEIGHT)
+                        printw("-");
+                }
+            }
+            attroff(COLOR_PAIR(1));
+
+            move(FIELD_HEIGHT + 1, FIELD_WIDTH / 2 - 3);
+            addstr("SCORE: 0");
+
+            generate_snake(&snake);
+            if (first_game_flag == 0)
+                first_game_flag = 1;
             generate_apple(snake);
-        }
-        else
-        {
-            move(snake.tail->y, snake.tail->x);
-            printw(" ");
-            delete_tail(&snake);
-        }
 
-        self_eating_check(snake);
+            while (break_flag != 1) // game cycle
+            {
+                usleep(speeds[diff - 1]);
+                nodelay(stdscr, 1);
 
-        reaching_bounds_check(snake);
-        
-        // drawing parts of the snake with changed coordinates
-        attron(COLOR_PAIR(2));
-        move(snake.head->y, snake.head->x);
-        printw(SNAKE_HEAD);
-        move(snake.head->next->y, snake.head->next->x);
-        printw(SNAKE_BODY);
-        attroff(COLOR_PAIR(2));
+                switch (getch()) // reading keyboard
+                {
+                // handling russian keyboard
+                case 208:
+                    switch (getch())
+                    {
+                    case 178:
+                        if (dx == -1)
+                            break;
+                        dx = 1;
+                        dy = 0;
+                        break;
+                    default:
+                        break;
+                    }
+                    break;
+
+                case 209:
+                    switch (getch())
+                    {
+                    case 139:
+                        if (dy == -1)
+                            break;
+                        dx = 0;
+                        dy = 1;
+                        break;
+                    case 134:
+                        if (dy == 1)
+                            break;
+                        dx = 0;
+                        dy = -1;
+                        break;
+                    case 132:
+                        if (dx == 1)
+                            break;
+                        dx = -1;
+                        dy = 0;
+                        break;
+                    default:
+                        break;
+                    }
+                    break;
+
+                // handling english keyboard
+                case 115:
+                    if (dy == -1)
+                        break;
+                    dx = 0;
+                    dy = 1;
+                    break;
+
+                case 119:
+                    if (dy == 1)
+                        break;
+                    dx = 0;
+                    dy = -1;
+                    break;
+
+                case 97:
+                    if (dx == 1)
+                        break;
+                    dx = -1;
+                    dy = 0;
+                    break;
+
+                case 100:
+                    if (dx == -1)
+                        break;
+                    dx = 1;
+                    dy = 0;
+                    break;
+
+                default:
+                    break;
+                }
+
+                // setting head coordinates
+                add_head(&snake, snake.head->x + dx, snake.head->y + dy);
+
+                // apple reaching check
+                if (snake.head->x == apple_x && snake.head->y == apple_y)
+                {
+                    score++;
+                    move(FIELD_HEIGHT + 1, FIELD_WIDTH / 2 + 4);
+                    printw("%d", score);
+
+                    generate_apple(snake);
+                }
+                else
+                {
+                    move(snake.tail->y, snake.tail->x);
+                    printw(" ");
+                    delete_tail(&snake);
+                }
+
+                self_eating_check(snake);
+
+                reaching_bounds_check(snake);
+
+                // drawing parts of the snake with changed coordinates
+                attron(COLOR_PAIR(2));
+                move(snake.head->y, snake.head->x);
+                printw(SNAKE_HEAD);
+                move(snake.head->next->y, snake.head->next->x);
+                printw(SNAKE_BODY);
+                attroff(COLOR_PAIR(2));
+            }
+        }
+        move(current_point_y, menu_x - 1);
+        printw(POINT);
     }
     endwin();
 }
